@@ -1,35 +1,133 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
+import { getChatRooms, getMessages } from "./api";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { socket } from "./lib/socket";
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface ChatRoom {
+  id: number;
+  name: string;
 }
 
-export default App
+interface Message {
+  id: number;
+  content: string;
+  created_at: string;
+}
+
+function App() {
+  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [currentRoom, setCurrentRoom] = useState<ChatRoom | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+
+  useEffect(() => {
+    getChatRooms().then((res) => setRooms(res.data.values));
+    socket.connect();
+  }, []);
+
+  useEffect(() => {
+    if (!currentRoom) return;
+
+    socket.clearCallbacks();
+    socket.subscribe(currentRoom.id);
+    getMessages(currentRoom.id).then((res) => setMessages(res.data));
+
+    const messageHandler = (message: Message) => {
+        setMessages(prev => [...prev, message]);
+    };
+
+    socket.onMessage(messageHandler);
+
+    return () => {
+        socket.clearCallbacks();
+    };
+}, [currentRoom]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentRoom || !input.trim()) return;
+
+    socket.sendMessage(currentRoom.id, input.trim());
+    setInput("");
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl dark:bg-slate-800">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center dark:text-white">
+            Realtime Chat
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="flex gap-6">
+            <div className="w-1/3">
+              <h2 className="font-semibold mb-4 dark:text-slate-200">
+                Chat Rooms
+              </h2>
+              <div className="space-y-2">
+                {Array.isArray(rooms) &&
+                  rooms.map((room) => (
+                    <Button
+                      key={room.id}
+                      variant={
+                        currentRoom?.id === room.id ? "secondary" : "outline"
+                      }
+                      className="w-full hover:dark:bg-slate-700"
+                      onClick={() => setCurrentRoom(room)}
+                    >
+                      {room.name}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="w-2/3">
+              {currentRoom ? (
+                <>
+                  <Card className="dark:bg-slate-800 border-0">
+                    <CardContent className="h-[500px] overflow-y-auto space-y-3 p-4">
+                      {messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className="bg-muted rounded-lg p-3 dark:bg-slate-700"
+                        >
+                          <span className="text-sm text-muted-foreground dark:text-slate-400 block mb-1">
+                            {msg.created_at}
+                          </span>
+                          <p className="dark:text-slate-200">{msg.content}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                  <form onSubmit={handleSubmit} className="mt-4 flex gap-3">
+                    <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Type a message..."
+                      className="dark:bg-slate-800 dark:text-slate-200"
+                    />
+                    <Button
+                      type="submit"
+                      className="dark:bg-slate-700 dark:text-white hover:dark:bg-slate-600"
+                    >
+                      Send
+                    </Button>
+                  </form>
+                </>
+              ) : (
+                <p className="text-muted-foreground dark:text-slate-400 text-center pt-20">
+                  Select a room to start chatting
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default App;

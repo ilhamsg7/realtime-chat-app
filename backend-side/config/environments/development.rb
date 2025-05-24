@@ -2,7 +2,9 @@ require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
-
+  config.action_cable.allowed_request_origins = [/http:\/\/*/, /https:\/\/*/]
+  config.action_cable.url = "ws://localhost:3000/cable"
+  
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 

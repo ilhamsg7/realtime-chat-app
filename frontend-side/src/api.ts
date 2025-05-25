@@ -15,3 +15,8 @@ export const postMessage = (roomId: number, content: string) => {
     message: { content }
   });
 };
+
+export const createChatRoom = (name: string) => axios.post(
+  `http://localhost:3000/api/chat_rooms`,
+  { chat_room: { name } }
+);

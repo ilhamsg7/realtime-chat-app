@@ -32,6 +32,12 @@ rails db:migrate
 rails server
 ```
 
+or
+
+```bash
+rails s
+```
+
 The backend will run on `http://localhost:3000`
 
 ## Frontend Setup (React + Vite)
@@ -54,7 +60,7 @@ bun install
 
 3. Start the development server
 ```bash
-bun dev
+bun run dev
 ```
 
 The frontend will run on `http://localhost:5174`
